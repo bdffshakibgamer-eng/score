@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Overlay Scoreboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: #0b0f19;
+            color: #ffffff;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Settings Button Top Right */
+        .settings-btn {
+            position: absolute;
+            top: 12px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            transition: 0.2s;
+        }
+
+        .settings-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* Top Bar Capsule Timer Only */
+        .top-timer-wrapper {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .timer-capsule {
+            background: rgba(255, 255, 255, 0.95);
+            color: #1e293b;
+            padding: 5px 18px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            font-family: monospace;
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+
+        .timer-icon {
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        /* Main Split Layout */
+        main {
+            flex: 1;
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        .player-side {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #left-side {
+            background: #e63946; /* Left Color */
+            border-right: 2px solid rgba(255, 255, 255, 0.8);
+        }
+
+        #right-side {
+            background: #3a86ef; /* Right Color */
+        }
+
+        .player-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .crown {
+            font-size: 3.5rem;
+            filter: drop-shadow(0 0 12px #f59e0b);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.3s ease;
+            margin-bottom: -10px;
+            z-index: 5;
+        }
+
+        .crown.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .ball-icon {
+            font-size: 3rem;
+            margin-bottom: 5px;
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.3));
+        }
+
+        .player-name {
+            font-size: 2.2rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #ffffff;
+            text-shadow: 0 3px 8px rgba(0,0,0,0.4);
+        }
+
+        .score-display {
+            font-size: 11rem;
+            font-weight: 900;
+            color: #ffffff;
+            text-shadow: 0 6px 18px rgba(0,0,0,0.35);
+            line-height: 1;
+            margin-top: 10px;
+        }
+
+        /* Modal Settings */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal {
+            background: #0f172a;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 420px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .setting-group {
+            margin-bottom: 15px;
+        }
+
+        .setting-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 5px;
+        }
+
+        .setting-group input, .setting-group select {
+            width: 100%;
+            padding: 8px;
+            background: #1e293b;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            color: white;
+            outline: none;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input {
+            width: auto;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-primary {
+            background: #0284c7;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-danger {
+            background: #e11d48;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Settings Button -->
+    <button class="settings-btn" onclick="openModal()">⚙️</button>
+
+    <!-- Top Capsule Timer -->
+    <div class="top-timer-wrapper">
+        <div class="timer-capsule" id="timerContainer">
+            <span class="timer-icon" onclick="toggleTimer()">▶</span>
+            <span id="timer">00:00:00</span>
+            <span class="timer-icon" onclick="resetTimer()">🔄</span>
+        </div>
+    </div>
+
+    <!-- Main Layout Split -->
+    <main>
+        <!-- Left Side -->
+        <div class="player-side" id="left-side">
+            <div class="player-header">
+                <div class="crown" id="left-crown">👑</div>
+                <div class="ball-icon">⚽</div>
+                <div class="player-name" id="left-name-display">MESSI</div>
+            </div>
+            <div class="score-display" id="left-score">0</div>
+        </div>
+
+        <!-- Right Side -->
+        <div class="player-side" id="right-side">
+            <div class="player-header">
+                <div class="crown" id="right-crown">👑</div>
+                <div class="ball-icon">⚽</div>
+                <div class="player-name" id="right-name-display">RONALDO</div>
+            </div>
+            <div class="score-display" id="right-score">0</div>
+        </div>
+    </main>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>⚙️ কাস্টমাইজেশন সেটিংস</h3>
+                <button onclick="closeModal()" style="background:none; border:none; color:white; font-size:1.2rem; cursor:pointer;">✖</button>
+            </div>
+
+            <div class="setting-group checkbox-group">
+                <input type="checkbox" id="showTimerInput" checked>
+                <label for="showTimerInput" style="margin:0; color:white;">টাইমার দেখান (Show Timer)</label>
+            </div>
+
+            <!-- Player Name Inputs -->
+            <div class="setting-group">
+                <label>বাম পাশের প্লেয়ারের নাম:</label>
+                <input type="text" id="leftNameInput" value="MESSI">
+            </div>
+            <div class="setting-group">
+                <label>ডান পাশের প্লেয়ারের নাম:</label>
+                <input type="text" id="rightNameInput" value="RONALDO">
+            </div>
+
+            <!-- Colors -->
+            <div class="setting-group">
+                <label>বাম পাশের ব্যাকগ্রাউন্ড কালার:</label>
+                <input type="color" id="leftColorInput" value="#e63946">
+            </div>
+            <div class="setting-group">
+                <label>ডান পাশের ব্যাকগ্রাউন্ড কালার:</label>
+                <input type="color" id="rightColorInput" value="#3a86ef">
+            </div>
+
+            <!-- Voice Selection -->
+            <div class="setting-group">
+                <label>ভয়েস টোন (Voice Tone):</label>
+                <select id="voiceGender">
+                    <option value="female">মেয়ের কন্ঠ (Female Voice)</option>
+                    <option value="male">ছেলের কন্ঠ (Male Voice)</option>
+                </select>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-danger" onclick="resetAll()">স্কোর রিসেট</button>
+                <button class="btn-primary" onclick="saveSettings()">সেভ করুন</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scores = { left: 0, right: 0 };
+        let timerSeconds = 0;
+        let timerInterval = null;
+        let isTimerRunning = false;
+
+        const synth = window.speechSynthesis;
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (isTimerRunning && timerSeconds < 5400) { // Max 90 mins
+                    timerSeconds++;
+                    let h = Math.floor(timerSeconds / 3600).toString().padStart(2, '0');
+                    let m = Math.floor((timerSeconds % 3600) / 60).toString().padStart(2, '0');
+                    let s = (timerSeconds % 60).toString().padStart(2, '0');
+                    document.getElementById('timer').innerText = `${h}:${m}:${s}`;
+                }
+            }, 1000);
+        }
+
+        function toggleTimer() {
+            isTimerRunning = !isTimerRunning;
+        }
+
+        function resetTimer() {
+            timerSeconds = 0;
+            document.getElementById('timer').innerText = "00:00:00";
+        }
+
+        function speakScore(primarySide) {
+            if (synth.speaking) synth.cancel();
+
+            let first = primarySide === 'left' ? scores.left : scores.right;
+            let second = primarySide === 'left' ? scores.right : scores.left;
+            
+            let textToSpeak = `${first}, ${second}`;
+            let utterance = new SpeechSynthesisUtterance(textToSpeak);
+
+            let gender = document.getElementById('voiceGender').value;
+            utterance.pitch = gender === 'female' ? 1.6 : 0.8;
+            utterance.rate = 1.0;
+
+            synth.speak(utterance);
+        }
+
+        function updateCrown() {
+            const leftCrown = document.getElementById('left-crown');
+            const rightCrown = document.getElementById('right-crown');
+
+            if (scores.left > scores.right) {
+                leftCrown.classList.add('active');
+                rightCrown.classList.remove('active');
+            } else if (scores.right > scores.left) {
+                rightCrown.classList.add('active');
+                leftCrown.classList.remove('active');
+            } else {
+                leftCrown.classList.remove('active');
+                rightCrown.classList.remove('active');
+            }
+        }
+
+        function updateDisplay() {
+            document.getElementById('left-score').innerText = scores.left;
+            document.getElementById('right-score').innerText = scores.right;
+            updateCrown();
+        }
+
+        // Touch & Swipe Control Implementation
+        function setupSwipe(sideId) {
+            const element = document.getElementById(sideId);
+            let startY = 0;
+
+            element.addEventListener('touchstart', (e) => {
+                startY = e.touches[0].clientY;
+            }, {passive: true});
+
+            element.addEventListener('touchend', (e) => {
+                let endY = e.changedTouches[0].clientY;
+                let diff = startY - endY;
+
+                // Minimum swipe distance threshold (30px)
+                if (Math.abs(diff) > 30) {
+                    if (diff > 0) {
+                        // Swipe Up (Upward drag) -> Increase Score
+                        scores[sideId === 'left-side' ? 'left' : 'right']++;
+                        updateDisplay();
+                        speakScore(sideId === 'left-side' ? 'left' : 'right');
+                    } else {
+                        // Swipe Down (Downward drag) -> Decrease Score
+                        let targetSide = sideId === 'left-side' ? 'left' : 'right';
+                        if (scores[targetSide] > 0) {
+                            scores[targetSide]--;
+                            updateDisplay();
+                        }
+                    }
+                } else {
+                    // Normal Tap -> Increase Score
+                    scores[sideId === 'left-side' ? 'left' : 'right']++;
+                    updateDisplay();
+                    speakScore(sideId === 'left-side' ? 'left' : 'right');
+                }
+            });
+
+            // Fallback for mouse click on PC/Chrome
+            element.addEventListener('click', () => {
+                scores[sideId === 'left-side' ? 'left' : 'right']++;
+                updateDisplay();
+                speakScore(sideId === 'left-side' ? 'left' : 'right');
+            });
+        }
+
+        setupSwipe('left-side');
+        setupSwipe('right-side');
+
+        function openModal() {
+            document.getElementById('settingsModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        function saveSettings() {
+            const leftName = document.getElementById('leftNameInput').value;
+            const rightName = document.getElementById('rightNameInput').value;
+            const leftColor = document.getElementById('leftColorInput').value;
+            const rightColor = document.getElementById('rightColorInput').value;
+            const showTimer = document.getElementById('showTimerInput').checked;
+
+            document.getElementById('left-name-display').innerText = leftName;
+            document.getElementById('right-name-display').innerText = rightName;
+
+            document.getElementById('left-side').style.background = leftColor;
+            document.getElementById('right-side').style.background = rightColor;
+
+            document.getElementById('timerContainer').style.display = showTimer ? 'flex' : 'none';
+
+            closeModal();
+        }
+
+        function resetAll() {
+            scores = { left: 0, right: 0 };
+            resetTimer();
+            updateDisplay();
+            closeModal();
+        }
+
+        // Init
+        updateDisplay();
+        startTimer();
+    </script>
+</body>
+</html>
